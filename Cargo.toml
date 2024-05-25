@@ -1,0 +1,32 @@
+[package]
+name = "backend-service-product"
+authors = ["Gubernatorov Mark <gubernatorovmark@gmail.com"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.uuid]
+version = "1.8"
+features = ["serde", "v4"]
+
+[dependencies.chrono]
+version = "0.4.38"
+features = ["serde"]
+
+[dependencies.polars]
+version = "0.40.0"
+features = ["lazy", "temporal", "describe", "json", "parquet", "dtype-datetime"]
+
+[dependencies]
+actix-web = "4"
+actix-multipart = "0.6.1"
+dotenvy = "0.15.7"
+env_logger = "0.11.3"
+sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls", "postgres", "chrono", "uuid" ] }
+minio = "0.1.0"
+serde = "1.0.198"
+serde_json = { version = "1.0.116", features = ["raw_value"] }
+log = "0.4.21"
+tempfile = "3.10.1"
+fern = "0.6.0"
+typed-builder = "0.18.2"
+reqwest = { version = "0.11.27", features = ["json"] }
