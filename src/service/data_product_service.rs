@@ -59,21 +59,7 @@ pub async fn create_data_product(
         fs::remove_file(path).expect("Unable to delete temporary file")
     }
 
-    sqlx::query!(
-                r#"
-                    INSERT INTO data_products (id, owner_id, status, type, category, partitions, created_at, update_at)
-                    VALUES ( $1, $2, $3, $4, $5, $6, $7, $8)
-                "#,
-                product.id: UUID,
-                product.owner_id: UUID,
-                product.status,
-                product.type_format,
-                product.category,
-                part_counter,
-                product.created_at: TIMESTAMP,
-                product.update_at: TIMESTAMP)
-        .execute(&data.db)
-        .await?;
+    let product = DataProduct::create(product, &data.db, part_counter).await?;
 
     Ok(Json(product))
 }
