@@ -1,1 +1,1 @@
-pub(crate) mod data_product_controller;
+pub mod data_product_controller;

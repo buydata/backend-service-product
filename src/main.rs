@@ -4,8 +4,11 @@ mod model;
 mod s3;
 mod service;
 
-use crate::api::data_product_controller::{create, show};
-use actix_web::{web, App, HttpServer};
+use actix_web::{
+    web::{scope, Data},
+    App, HttpServer,
+};
+use api::data_product_controller::{create, products, show};
 use db::establish_connection;
 use minio::s3::client::Client;
 use s3::establish_connection_s3;
@@ -37,12 +40,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(AppState {
+            .app_data(Data::new(AppState {
                 db: pool.clone(),
                 s3: s3_client.clone(),
             }))
-            .service(create)
-            .service(show)
+            .service(
+                scope("/api/v1")
+                    .service(create)
+                    .service(show)
+                    .service(products),
+            )
             .wrap(actix_web::middleware::Logger::default())
     })
     .bind(url)?
