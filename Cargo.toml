@@ -18,6 +18,9 @@ features = ["lazy", "temporal", "describe", "json", "parquet", "dtype-datetime"]
 
 [dependencies]
 actix-web = "4.9.0"
+utoipa-swagger-ui = { version = "8", features = ["actix-web"] }
+utoipa = {version = "5", features = ["uuid", "chrono", "actix_extras"]}
+utoipa-actix-web = "0.1"
 actix-multipart = "0.7.2"
 dotenvy = "0.15.7"
 env_logger = "0.11.6"
