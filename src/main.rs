@@ -4,12 +4,17 @@ mod model;
 mod s3;
 mod service;
 
-use crate::api::data_product_controller::{create, show};
-use actix_web::{web, App, HttpServer};
+use actix_web::{
+    web::Data,
+    App, HttpServer,
+};
+use api::data_product_controller::{create, products, show};
 use db::establish_connection;
 use minio::s3::client::Client;
 use s3::establish_connection_s3;
 use sqlx::{Pool, Postgres};
+use utoipa_actix_web::{scope, AppExt};
+use utoipa_swagger_ui::SwaggerUi;
 use std::env;
 
 pub struct AppState {
@@ -37,12 +42,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(AppState {
+            .app_data(Data::new(AppState {
                 db: pool.clone(),
                 s3: s3_client.clone(),
             }))
-            .service(create)
-            .service(show)
+            .into_utoipa_app()
+            .service(
+                scope::scope("/v1")
+                    .service(create)
+                    .service(show)
+                    .service(products),
+            )
+            .openapi_service(|api| {
+                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api/openapi.json", api)
+            })
+            .into_app()
             .wrap(actix_web::middleware::Logger::default())
     })
     .bind(url)?
