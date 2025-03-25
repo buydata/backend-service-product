@@ -12,7 +12,7 @@ use crate::model::data_product::{DataProduct, UploadForm};
 use crate::AppState;
 
 impl DataProduct {
-    pub async fn create(
+    async fn create(
         product: DataProduct,
         ppg: &Pool<Postgres>,
         cnt: i16,
@@ -41,7 +41,7 @@ impl DataProduct {
         }
     }
 
-    pub async fn show_all(ppg: &Pool<Postgres>) -> Result<Vec<DataProduct>, Error> {
+    async fn show_all(ppg: &Pool<Postgres>) -> Result<Vec<DataProduct>, Error> {
         let query = sqlx::query_as!(
             DataProduct,
             r#"
