@@ -5,31 +5,28 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies.uuid]
-version = "1.11.0"
+version = "1.16.0"
 features = ["serde", "v4"]
 
 [dependencies.chrono]
-version = "0.4.39"
+version = "0.4.40"
 features = ["serde"]
 
-[dependencies.polars]
-version = "0.40.0"
-features = ["lazy", "temporal", "describe", "json", "parquet", "dtype-datetime"]
-
 [dependencies]
-actix-web = "4.9.0"
-utoipa-swagger-ui = { version = "8", features = ["actix-web"] }
+actix-web = "4.10.2"
+utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 utoipa = {version = "5", features = ["uuid", "chrono", "actix_extras"]}
 utoipa-actix-web = "0.1"
 actix-multipart = "0.7.2"
 dotenvy = "0.15.7"
-env_logger = "0.11.6"
-sqlx = { version = "0.8.2", features = [ "runtime-tokio", "tls-rustls", "postgres", "chrono", "uuid" ] }
+env_logger = "0.11.7"
+sqlx = { version = "0.8.3", features = [ "runtime-tokio", "tls-rustls", "postgres", "chrono", "uuid" ] }
 minio = "0.1.0"
-serde = "1.0.217"
-serde_json = { version = "1.0.134", features = ["raw_value"] }
-log = "0.4.22"
-tempfile = "3.14.0"
-fern = "0.7.0"
-typed-builder = "0.20.0"
-reqwest = { version = "0.12.9", features = ["json"] }
+serde = "1.0.219"
+serde_json = { version = "1.0.140", features = ["raw_value"] }
+log = "0.4.27"
+tempfile = "3.19.1"
+fern = "0.7.1"
+typed-builder = "0.21.0"
+reqwest = { version = "0.12.15", features = ["json"] }
+thiserror = "2"

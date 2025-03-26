@@ -3,60 +3,15 @@ use std::fs;
 use actix_web::web;
 use actix_web::web::Json;
 use chrono::Utc;
+use log::info;
 use minio::s3::args::*;
-use minio::s3::error::Error as MinioError;
-use sqlx::{Error, Pool, Postgres};
+use sqlx::Error;
 use uuid::Uuid;
 
-use crate::model::data_product::{DataProduct, UploadForm};
+use crate::error::AppError;
+use crate::model::data_product::DataProduct;
+use crate::model::forms::upload::UploadForm;
 use crate::AppState;
-
-impl DataProduct {
-    async fn create(
-        product: DataProduct,
-        ppg: &Pool<Postgres>,
-        cnt: i16,
-    ) -> Result<DataProduct, Error> {
-        let query = sqlx::query!(
-            r#"
-                INSERT INTO data_products (id, owner_id, status, format, name, category, source, partitions, created_at, update_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            "#,
-            product.id,
-            product.owner_id,
-            product.status,
-            product.format,
-            product.name,
-            product.category,
-            product.source,
-            cnt,
-            product.created_at,
-            product.update_at)
-            .execute(ppg)
-            .await;
-
-        match query {
-            Ok(_) => Ok(product),
-            Err(error) => Err(error),
-        }
-    }
-
-    async fn show_all(ppg: &Pool<Postgres>) -> Result<Vec<DataProduct>, Error> {
-        let query = sqlx::query_as!(
-            DataProduct,
-            r#"
-                SELECT * FROM data_products
-            "#
-        )
-        .fetch_all(ppg)
-        .await;
-
-        match query {
-            Ok(query) => Ok(query),
-            Err(error) => Err(error),
-        }
-    }
-}
 
 pub async fn create_data_product(
     data: web::Data<AppState>,
@@ -64,6 +19,36 @@ pub async fn create_data_product(
 ) -> Result<Json<DataProduct>, Error> {
     let product_id = Uuid::new_v4();
     let format = form.format.to_owned();
+
+    info!("Bucket: {:?} create...", &product_id);
+    data.s3
+        .make_bucket(&MakeBucketArgs::new(&product_id.to_string()).unwrap())
+        .await
+        .unwrap();
+
+    let mut part_counter: i16 = 0;
+
+    info!("Temp files: {:?}", &form.files);
+    for f in form.files {
+        part_counter += 1;
+        let filename: String = format!("{product_id}_{part_counter}.{format}");
+        info!("Filename: {:?}", &filename);
+        let path = format!("./tmp/{filename}");
+        info!("Path: {:?}", &path);
+
+        f.file.persist(&path).expect("Persist fail");
+
+        let s3_resp = data
+            .s3
+            .upload_object(
+                &mut UploadObjectArgs::new(&*product_id.to_string(), &filename, &path).unwrap(),
+            )
+            .await
+            .unwrap();
+
+        info!("{:?}", s3_resp);
+        fs::remove_file(path).expect("Unable to delete temporary file")
+    }
 
     let product = DataProduct::builder()
         .id(product_id)
@@ -73,63 +58,36 @@ pub async fn create_data_product(
         .name(form.name.to_owned())
         .category(form.category.to_owned())
         .source(form.source.to_owned())
+        .partitions(part_counter)
         .created_at(Utc::now().naive_utc())
-        .update_at(Utc::now().naive_utc())
+        .updated_at(Utc::now().naive_utc())
         .build();
 
-    let product_id = &product.id;
-    let format = &product.format;
-
-    let exists = data
-        .s3
-        .bucket_exists(&BucketExistsArgs::new(&product_id.to_string()).unwrap())
-        .await
-        .unwrap();
-
-    if !exists {
-        data.s3
-            .make_bucket(&MakeBucketArgs::new(&product_id.to_string()).unwrap())
-            .await
-            .unwrap();
-    }
-
-    let mut part_counter: i16 = 0;
-
-    for f in form.files {
-        let filename: String = format!("{product_id}_{part_counter}.{format}");
-        let path = format!("./tmp/{filename}");
-        f.file.persist(&path).unwrap();
-
-        data.s3
-            .upload_object(
-                &mut UploadObjectArgs::new(&*product_id.to_string(), &filename, &path).unwrap(),
-            )
-            .await
-            .unwrap();
-
-        part_counter += 1;
-        fs::remove_file(path).expect("Unable to delete temporary file")
-    }
-
-    let product = DataProduct::create(product, &data.db, part_counter).await?;
+    DataProduct::create(&product, &data.db).await?;
 
     Ok(Json(product))
 }
 
-pub async fn show_data_product(
+pub async fn show_product_data(
     data: web::Data<AppState>,
     product_id: String,
-) -> Result<String, MinioError> {
-    let topic = &product_id;
-    let object_id = &format!("{topic}_0.json");
-    let args = ObjectConditionalReadArgs::new(topic, object_id).unwrap();
+) -> Result<String, AppError> {
+    // Получаем продукт
+    let product = DataProduct::get_by_id(&data.db, &product_id)
+        .await?
+        .ok_or(AppError::NotFound)?;
 
-    let data = data.s3.get_object(&args).await?.text().await?;
+    let object_id = format!("{}_{}.{}", product_id, product.partitions, product.format);
 
-    Ok(data)
+    let args = ObjectConditionalReadArgs::new(&product_id, &object_id)
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    let object_data = data.s3.get_object(&args).await?.text().await.unwrap();
+
+    Ok(object_data)
 }
 
 pub async fn show_all_products(data: web::Data<AppState>) -> Result<Json<Vec<DataProduct>>, Error> {
-    let products = DataProduct::show_all(&data.db).await?;
+    let products = DataProduct::all(&data.db).await?;
     Ok(Json(products))
 }

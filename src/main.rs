@@ -1,21 +1,19 @@
 mod api;
 mod db;
+pub mod error;
 mod model;
 mod s3;
 mod service;
 
-use actix_web::{
-    web::Data,
-    App, HttpServer,
-};
+use actix_web::{web::Data, App, HttpServer};
 use api::data_product_controller::{create, products, show};
 use db::establish_connection;
 use minio::s3::client::Client;
 use s3::establish_connection_s3;
 use sqlx::{Pool, Postgres};
+use std::env;
 use utoipa_actix_web::{scope, AppExt};
 use utoipa_swagger_ui::SwaggerUi;
-use std::env;
 
 pub struct AppState {
     db: Pool<Postgres>,
