@@ -5,7 +5,8 @@ mod model;
 mod s3;
 mod service;
 
-use actix_web::{web::Data, App, HttpServer};
+use actix_web::{http, web::Data, App, HttpServer};
+use actix_cors::Cors;
 use api::data_product_controller::{create, products, show};
 use db::establish_connection;
 use minio::s3::client::Client;
@@ -39,6 +40,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let s3_client = establish_connection_s3().await;
 
     HttpServer::new(move || {
+
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:3000")
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
+            .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+            .allowed_header(http::header::CONTENT_TYPE)
+            .max_age(3600);
+
         App::new()
             .app_data(Data::new(AppState {
                 db: pool.clone(),
@@ -56,6 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             })
             .into_app()
             .wrap(actix_web::middleware::Logger::default())
+            .wrap(cors)
     })
     .bind(url)?
     .run()
